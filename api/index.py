@@ -14,7 +14,7 @@ app.add_middleware(
 )
 
 # Load data once at startup
-df = pd.read_csv("telemetry.csv")
+df = pd.read_json("q-vercel-latency.json")
 
 @app.post("/api/metrics")
 async def get_metrics(regions: List[str] = Body(...), threshold_ms: int = Body(...)):
