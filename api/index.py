@@ -7,43 +7,46 @@ import numpy as np
 from typing import List
 
 app = FastAPI()
+
+# We keep the middleware as a baseline safety net
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Your specific manual headers
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Expose-Headers": "Access-Control-Allow-Origin",
 }
-# Standard CORS setup
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"], # Allows GET, POST, OPTIONS, etc.
-    allow_headers=["*"],
-)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JSON_PATH = os.path.join(BASE_DIR, "q-vercel-latency.json")
 
 try:
     df = pd.read_json(JSON_PATH)
-except Exception as e:
+except Exception:
     df = pd.DataFrame()
 
-# 1. FIX: Add a GET route for the root "/"
 @app.get("/")
 async def root():
-    return {"message": "API is running", "endpoint": "/api/metrics"}
+    return JSONResponse(
+        content={"message": "API is running", "endpoint": "/api/metrics"},
+        headers=CORS_HEADERS
+    )
 
-# 2. FIX: Prevent 405 on favicon requests
-@app.get("/favicon.ico")
-async def favicon():
-    return JSONResponse(content={})
-
-# 3. Your main Metrics route
 @app.post("/api/metrics")
 async def get_metrics(regions: List[str] = Body(...), threshold_ms: int = Body(...)):
     if df.empty:
-        return {"error": "Telemetry data unavailable"}
+        return JSONResponse(
+            content={"error": "Telemetry data unavailable"}, 
+            status_code=500,
+            headers=CORS_HEADERS
+        )
         
     results = {}
     for region in regions:
@@ -60,5 +63,6 @@ async def get_metrics(regions: List[str] = Body(...), threshold_ms: int = Body(.
             "avg_uptime": float(uptimes.mean()),
             "breaches": int((latencies > threshold_ms).sum())
         }
-        
-    return results
+    
+    # Manually returning JSONResponse ensures your CORS_HEADERS are attached
+    return JSONResponse(content=results, headers=CORS_HEADERS)
