@@ -8,7 +8,6 @@ from typing import List
 
 app = FastAPI()
 
-# We keep the middleware as a baseline safety net
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,7 +15,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Your specific manual headers
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
@@ -48,7 +46,7 @@ async def get_metrics(regions: List[str] = Body(...), threshold_ms: int = Body(.
             headers=CORS_HEADERS
         )
         
-    results = {}
+    region_metrics = {}
     for region in regions:
         region_df = df[df['region'].str.lower() == region.lower()]
         if region_df.empty:
@@ -57,12 +55,14 @@ async def get_metrics(regions: List[str] = Body(...), threshold_ms: int = Body(.
         latencies = region_df['latency_ms']
         uptimes = region_df['uptime_pct']
         
-        results[region] = {
+        region_metrics[region] = {
             "avg_latency": float(latencies.mean()),
             "p95_latency": float(np.percentile(latencies, 95)),
             "avg_uptime": float(uptimes.mean()),
             "breaches": int((latencies > threshold_ms).sum())
         }
     
-    # Manually returning JSONResponse ensures your CORS_HEADERS are attached
-    return JSONResponse(content=results, headers=CORS_HEADERS)
+    # WRAP THE DATA: Put the metrics inside a "regions" key
+    final_output = {"regions": region_metrics}
+    
+    return JSONResponse(content=final_output, headers=CORS_HEADERS)
