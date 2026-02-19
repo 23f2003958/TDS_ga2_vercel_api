@@ -27,7 +27,7 @@ except Exception as e:
 # 1. FIX: Add a GET route for the root "/"
 @app.get("/")
 async def root():
-    return {"message": "Kalpenna API is running", "endpoint": "/api/metrics"}
+    return {"message": "API is running", "endpoint": "/api/metrics"}
 
 # 2. FIX: Prevent 405 on favicon requests
 @app.get("/favicon.ico")
